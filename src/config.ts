@@ -3,10 +3,9 @@ import { MAINNET, RPCS, TESTNET } from "kujira.js";
 
 export const NETWORK = process.env.NETWORK === "mainnet" ? MAINNET : TESTNET;
 
-export enum Protocol {
-  USK = "usk",
-  BOW = "bow",
-  GHOST = "ghost",
+export enum Contract {
+  HUB = "hub",
+  UNIFIER = "unifier",
 }
 
 const RPC_DEFAULT =

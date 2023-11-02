@@ -1,5 +1,5 @@
 import { StdFee } from "@cosmjs/amino";
-import { Slip10RawIndex } from "@cosmjs/crypto";
+import { Secp256k1, Slip10RawIndex } from "@cosmjs/crypto";
 
 import { Uint53 } from "@cosmjs/math";
 import {
@@ -66,7 +66,7 @@ export async function signAndBroadcast(
   memo = ""
 ): Promise<DeliverTxResponse> {
   const gasEstimation = await account[0].simulate(account[1], messages, memo);
-  const multiplier = 1.2;
+  const multiplier = 1.5;
   const orchestrator = await ORCHESTRATOR;
   const fee = calculateFee(
     Math.round(gasEstimation * multiplier),
@@ -74,4 +74,23 @@ export async function signAndBroadcast(
   );
 
   return account[0].signAndBroadcast(account[1], messages, fee, memo);
+}
+
+/// Uses the ORACLE_KEY to sign arbitrary data
+export async function oracleSignArbitrary(
+  data: Uint8Array
+): Promise<{ signature: Uint8Array, pubkey: Uint8Array }> {
+  if (!process.env.ORACLE_KEY) throw new Error("ORACLE_KEY not set");
+  // convert ORACLE_KEY to Uint8Array private key
+  const privateKey = new Uint8Array(
+    Buffer.from(process.env.ORACLE_KEY, "hex")
+  );
+  const { pubkey } = await Secp256k1.makeKeypair(privateKey);
+  const compressedPubkey = await Secp256k1.compressPubkey(pubkey);
+  const extendedSignature = (await Secp256k1.createSignature(data, privateKey));
+  const signature = new Uint8Array([
+      ...extendedSignature.r(32),
+      ...extendedSignature.s(32)
+  ]);
+  return { signature, pubkey: compressedPubkey };
 }
