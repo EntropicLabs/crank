@@ -1,6 +1,6 @@
 # Quark Crank
 
-This repository is forked from the (Kujira Crank repository)[https://github.com/Team-Kujira/crank]. It has the following modifications:
+This repository is forked from the [Kujira Crank repository](https://github.com/Team-Kujira/crank). It has the following modifications:
 * Use `bun` instead of `yarn`
 * Crank workers for Quark contracts
 * Remove `appsignal`
