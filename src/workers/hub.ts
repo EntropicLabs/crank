@@ -25,8 +25,6 @@ export async function run(address: string, idx: number) {
     const config = registry[NETWORK].find((x) => x.address === address);
     if (!config) throw new Error(`${address} hub not found`);
 
-    // console.info(`[USK:${address}] running with ${w[1]}`);
-
     try {
         const w = await client(idx);
 
@@ -45,7 +43,7 @@ export async function run(address: string, idx: number) {
         try {
             console.debug(`[HUB:${address}] Cranking...`);
             const res = await signAndBroadcast(w, msgs, "auto");
-            console.debug(`[HUB:${address}] Cranked: ${res.transactionHash}`);
+            console.info(`[HUB:${address}] Cranked: ${res.transactionHash}`);
         } catch (e: any) {
             console.error(`[HUB:${address}] ${e}`);
         }

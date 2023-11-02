@@ -75,10 +75,7 @@ async function queryMantaSwap(input: string, amount: string, output: string, sli
  * - Each "chain" (run of degree 1) is a single-input single-output swap path
  * - Many inputs will converge at various points in the graph
  */
-async function constructMultiInputSwap(client: Client, config: Config): Promise<[[string, string][][], Coin[]]> {
-    // Fetch balances to be used as inputs
-    const { balances }: { balances: { denom: string, amount: string }[] } =
-        await querier.wasm.queryContractSmart(config.address, { pending_swaps: {} });
+async function constructMultiInputSwap(balances: Coin[], config: Config): Promise<[[string, string][][], Coin[]]> {
     // Query all one-to-one swap paths
     const results = await Promise.all(balances.map(async ({ denom, amount }) => {
         console.debug(`[UNIFIER:${config.address}] Querying MantaSwap API for ${amount} ${denom} -> ${config.target}`);
@@ -154,9 +151,16 @@ export async function run(address: string, idx: number) {
     if (!config) throw new Error(`${address} unifier not found`);
     try {
         const w = await client(idx);
-        console.info(`[UNIFIER:${address}] running with ${idx}`);
-        const [stages, funds] = await constructMultiInputSwap(w, config);
-        
+        // Fetch balances to be used as inputs
+        const { balances }: { balances: Coin[] } =
+            await querier.wasm.queryContractSmart(config.address, { pending_swaps: {} });
+        const [stages, funds] = await constructMultiInputSwap(balances, config);
+
+        if (stages.length === 0 || funds.length === 0) {
+            console.debug(`[UNIFIER:${address}] No swaps to be made`);
+            return;
+        }
+
         const seconds = Math.floor(Date.now() / 1000);
         const toSign = { stages, funds, timestamp: seconds };
         // Recent versions of JavaScript guarantee that JSON.stringify
@@ -187,7 +191,7 @@ export async function run(address: string, idx: number) {
         try {
             console.debug(`[UNIFIER:${address}] Cranking...`);
             const res = await signAndBroadcast(w, msgs, "auto");
-            console.debug(`[UNIFIER:${address}] Cranked: ${res.transactionHash}`);
+            console.info(`[UNIFIER:${address}] Cranked: ${res.transactionHash}`);
         } catch (e: any) {
             console.error(`[UNIFIER:${address}] ${e}`);
         }
