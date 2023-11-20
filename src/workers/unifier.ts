@@ -1,6 +1,6 @@
 import { Contract, NETWORK } from "config.js";
 import { Client, client, oracleSignArbitrary, signAndBroadcast } from "wallet.js";
-import { msg } from "kujira.js";
+import { MAINNET, msg } from "kujira.js";
 import { querier } from "query.js";
 import { sha256 } from "@cosmjs/crypto";
 
@@ -14,7 +14,16 @@ type Coin = {
 }
 
 export const registry: { [k: string]: Config[] } = {
-    "kaiyo-1": [],
+    "kaiyo-1": [
+        {
+            address: "kujira157g8vxwyp9v8jvh0hytkmautuuwj2at64mkwdlhx0q8yx0g8gcusjczwrp",
+            target: "factory/kujira1643jxg8wasy5cfcn7xm8rd742yeazcksqlg4d7/umnta"
+        },
+        {
+            address: "kujira1vp2lvn3nryezv6767g5kcayd9k52a4v6tsca59a0mxjw2fhm8apqq0nzl0",
+            target: "ukuji"
+        }
+    ],
     "harpoon-4": [
         {
             address: "kujira1rfkn3h4ph8ud28qwa2papetys727p9ndcfxyjv79szs4u5t22akqxl8u8x",
@@ -34,6 +43,17 @@ export const contracts = [
     })),
 ];
 
+const mantaSwapURL = () => NETWORK === MAINNET ? "https://api.mantadao.app" : `https://api.mantadao.app/${NETWORK}`;
+
+async function queryMantaSwapWhitelist(): Promise<string[]> {
+    const res = await fetch(`${mantaSwapURL()}/whitelist`).then((res) => res.json());
+    if (res.error) {
+        console.error(`[UNIFIER:whitelist] Error fetching whitelist: ${res.error}`);
+        return [];
+    }
+    return res.map((x: any) => x.denom);
+}
+
 async function queryMantaSwap(input: string, amount: string, output: string, slippage: string = "0.01"): Promise<[{ address: string, denom: string }[], Coin]> {
     const inputCoin = { denom: input, amount };
     const body = {
@@ -46,7 +66,7 @@ async function queryMantaSwap(input: string, amount: string, output: string, sli
             denom: output
         }
     };
-    const res = await fetch(`https://api.mantadao.app/${NETWORK}/route`, {
+    const res = await fetch(`${mantaSwapURL()}/route`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -55,6 +75,10 @@ async function queryMantaSwap(input: string, amount: string, output: string, sli
     }).then((res) => res.json());
     if (res.error) {
         // Don't spam the console with "denom not found" errors
+        console.error(`[UNIFIER:${input}] ${res.error}`);
+        return [[], inputCoin];
+    }
+    if (res.routes.length === 0) {
         return [[], inputCoin];
     }
     const stages: [[string, string]][] = res.routes[0].tx.swap.stages;
@@ -133,9 +157,13 @@ async function constructMultiInputSwap(balances: Coin[], config: Config): Promis
                 next.push(node);
                 return;
             }
-            stages[stage].push([node.address, node.denom]);
-            if (node.next) {
-                next.push(node.next);
+            // Filter out duplicate addresses and denoms
+            // Yes, this is slow, but who cares
+            if (!stages[stage].find(([address, denom]) => (address === node.address || denom === node.denom))) {
+                stages[stage].push([node.address, node.denom]);
+                if (node.next) {
+                    next.push(node.next);
+                }
             }
         });
         cur = next;
@@ -151,10 +179,13 @@ export async function run(address: string, idx: number) {
     if (!config) throw new Error(`${address} unifier not found`);
     try {
         const w = await client(idx);
+        const whitelist = await queryMantaSwapWhitelist();
         // Fetch balances to be used as inputs
         const { balances }: { balances: Coin[] } =
             await querier.wasm.queryContractSmart(config.address, { pending_swaps: {} });
-        const [stages, funds] = await constructMultiInputSwap(balances, config);
+        // Filter out non-whitelisted tokens and small balances
+        let filteredBalances = balances.filter(({ denom }) => whitelist.includes(denom));
+        const [stages, funds] = await constructMultiInputSwap(filteredBalances, config);
 
         if (stages.length === 0 || funds.length === 0) {
             console.debug(`[UNIFIER:${address}] No swaps to be made`);

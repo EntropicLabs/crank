@@ -6,7 +6,7 @@ import { createGrant, getGrant } from "./workers/index.js";
 import * as hub from "./workers/hub.js";
 import * as unifier from "./workers/unifier.js";
 
-const ENABLED = [...hub.contracts, ...unifier.contracts];
+const ENABLED = [...unifier.contracts, ...hub.contracts,];
 
 const run = async () => {
   await Promise.all(
