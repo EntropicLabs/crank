@@ -45,6 +45,15 @@ export const contracts = [
 
 const mantaSwapURL = () => NETWORK === MAINNET ? "https://api.mantadao.app" : `https://api.mantadao.app/${NETWORK}`;
 
+const hardcodedRoutes: { [denom: string]: { address: string, output: string, maxSwapAmount: string } } = {
+    "factory/kujira166ysf07ze5suazfzj0r05tv8amk2yn8zvsfuu7/uplnk": {
+        address: "kujira1phpdpsnrkfvqr5883p8jlqslknuc7ypfd78er5ajkfpd3cuy7hqs93a4n7",
+        output: "factory/kujira1qk00h5atutpsv900x202pxx42npjr9thg58dnqpa72f2p7m2luase444a7/uusk",
+        maxSwapAmount: "100000000"
+    }
+};
+
+
 async function queryMantaSwapWhitelist(): Promise<string[]> {
     const res = await fetch(`${mantaSwapURL()}/whitelist`).then((res) => res.json());
     if (res.error) {
@@ -103,8 +112,18 @@ async function constructMultiInputSwap(balances: Coin[], config: Config): Promis
     // Query all one-to-one swap paths
     const results = await Promise.all(balances.map(async ({ denom, amount }) => {
         console.debug(`[UNIFIER:${config.address}] Querying MantaSwap API for ${amount} ${denom} -> ${config.target}`);
+        if (hardcodedRoutes[denom]) {
+            const { address, output, maxSwapAmount } = hardcodedRoutes[denom];
+            // Rough parseInt since precision here doesn't matter
+            if (parseInt(amount) > parseInt(maxSwapAmount)) {
+                amount = maxSwapAmount;
+            }
+            console.debug(`[UNIFIER:${config.address}] Using hardcoded route for ${denom} -> ${output}`);
+
+            return [[{ address, denom }], { denom, amount }] as [{ address: string, denom: string }[], Coin];
+        }
         return await queryMantaSwap(denom, amount, config.target).catch((e: any) => {
-            console.error(`[UNIFIER:${config.address}] ${e}`);
+            console.error(`[UNIFIER:${config.address}] (${denom}) query: ${e}`);
             return [];
         });
     }));
@@ -184,7 +203,7 @@ export async function run(address: string, idx: number) {
         const { balances }: { balances: Coin[] } =
             await querier.wasm.queryContractSmart(config.address, { pending_swaps: {} });
         // Filter out non-whitelisted tokens and small balances
-        let filteredBalances = balances.filter(({ denom }) => whitelist.includes(denom));
+        let filteredBalances = balances.filter(({ denom }) => whitelist.includes(denom) || !!hardcodedRoutes[denom]);
         const [stages, funds] = await constructMultiInputSwap(filteredBalances, config);
 
         if (stages.length === 0 || funds.length === 0) {
@@ -229,7 +248,7 @@ export async function run(address: string, idx: number) {
     } catch (error: any) {
         console.error(`[UNIFIER:${address}] ${error.message}`);
     } finally {
-        await new Promise((resolve) => setTimeout(resolve, 600000));
+        await new Promise((resolve) => setTimeout(resolve, 33200000));
         await run(address, idx);
     }
 }
