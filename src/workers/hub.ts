@@ -5,7 +5,8 @@ import { msg } from "kujira.js";
 export const registry = {
     "kaiyo-1": [
         { address: "kujira1eulxny0ffvhkkec9l2s44tg9a868ly0fgg86raduypku735zyeyqv7lsun", interval: 86400 },
-        { address: "kujira17nsll5xs4ak8lsguqelhh0etvvfe2cw6lmhg0jpja28zedunddkq0d4jv4", interval: 86400 }
+        { address: "kujira17nsll5xs4ak8lsguqelhh0etvvfe2cw6lmhg0jpja28zedunddkq0d4jv4", interval: 86400 },
+        { address: "kujira1y52rf2kv6t9yvev7g3s5jvxutw7jxj3a87p3yydrh4dxtdglkssq06sjy2", interval: 86400 }
     ],
     "harpoon-4": [
         { address: "kujira1jhmfj3avt2dlswrqlgx7fssvgrqfqzyj9m5cvgavuwekquxhu27ql88enu", interval: 60 },

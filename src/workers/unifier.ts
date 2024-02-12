@@ -1,6 +1,6 @@
 import { Contract, NETWORK } from "config.js";
 import { Client, client, oracleSignArbitrary, signAndBroadcast } from "wallet.js";
-import { MAINNET, msg } from "kujira.js";
+import { Denom, MAINNET, msg } from "kujira.js";
 import { querier } from "query.js";
 import { sha256 } from "@cosmjs/crypto";
 
@@ -22,6 +22,10 @@ export const registry: { [k: string]: Config[] } = {
         {
             address: "kujira1vp2lvn3nryezv6767g5kcayd9k52a4v6tsca59a0mxjw2fhm8apqq0nzl0",
             target: "ukuji"
+        },
+        {
+            address: "kujira15d7wlz5fy879geplhm88pgey8wpav6z2y6xl8qdeq33a85hyqrpsunzq4l",
+            target: "factory/kujira1sc6a0347cc5q3k890jj0pf3ylx2s38rh4sza4t/ufuzn"
         }
     ],
     "harpoon-4": [
@@ -49,7 +53,42 @@ const hardcodedRoutes: { [denom: string]: { address: string, output: string, max
     "factory/kujira166ysf07ze5suazfzj0r05tv8amk2yn8zvsfuu7/uplnk": {
         address: "kujira1phpdpsnrkfvqr5883p8jlqslknuc7ypfd78er5ajkfpd3cuy7hqs93a4n7",
         output: "factory/kujira1qk00h5atutpsv900x202pxx42npjr9thg58dnqpa72f2p7m2luase444a7/uusk",
-        maxSwapAmount: "100000000"
+        maxSwapAmount: "1000000000" //1000 PLNK
+    },
+    "factory/kujira17clmjjh9jqvnzpt0s90qx4zag8p5m2p6fq3mj9727msdf5gyx87qanzf3m/ulp": {
+        address: "kujira1vunhdfym5au07lfdq9ljayect0k6w6krl3ykz0q4pukz3xuj4m5s62wv5h",
+        output: "factory/kujira1qk00h5atutpsv900x202pxx42npjr9thg58dnqpa72f2p7m2luase444a7/uusk",
+        maxSwapAmount: "10000000000" //10,000 LP FUZN-USK
+    },
+    "factory/kujira1w4yaama77v53fp0f9343t9w2f932z526vj970n2jv5055a7gt92sxgwypf/urcpt": {
+        address: "kujira1vunhdfym5au07lfdq9ljayect0k6w6krl3ykz0q4pukz3xuj4m5s62wv5h",
+        output: "factory/kujira1qk00h5atutpsv900x202pxx42npjr9thg58dnqpa72f2p7m2luase444a7/uusk",
+        maxSwapAmount: "10000000000" //10,000 xUSK
+    },
+    "factory/kujira143fwcudwy0exd6zd3xyvqt2kae68ud6n8jqchufu7wdg5sryd4lqtlvvep/urcpt": {
+        address: "kujira1vunhdfym5au07lfdq9ljayect0k6w6krl3ykz0q4pukz3xuj4m5s62wv5h",
+        output: "ukuji",
+        maxSwapAmount: "10000000000" //10,000 xKUJI
+    }
+};
+
+// Tokens that we shouldn't swap
+const blacklist: string[] = [];
+
+const MIN_OVERRIDES: { [denom: string]: bigint } = {
+    "ibc/31ED168F5E93D988FCF223B1298113ACA818DB7BED8F7B73764C5C9FAC293609": 100000000000n, // 100 ROAR
+    "ibc/6A4CEDCEA40B587A4BCF7FDFB1D5A13D13F8A807A22A4E759EA702640CE086B0": 100000000000000n, // 0.0001 DYDX
+};
+
+const MIN_SWAP_AMOUNT = (denom: string): bigint => {
+    if (MIN_OVERRIDES[denom]) {
+        return MIN_OVERRIDES[denom];
+    }
+    let d = Denom.from(denom);
+    if (d.decimals === 18) {
+        return 100000000000000n; // 0.0001 of an 18 decimal token
+    } else {
+        return 10000n; // 0.01 of a 6 decimal token
     }
 };
 
@@ -111,6 +150,14 @@ async function queryMantaSwap(input: string, amount: string, output: string, sli
 async function constructMultiInputSwap(balances: Coin[], config: Config): Promise<[[string, string][][], Coin[]]> {
     // Query all one-to-one swap paths
     const results = await Promise.all(balances.map(async ({ denom, amount }) => {
+        if (BigInt(amount) < MIN_SWAP_AMOUNT(denom)) {
+            console.debug(`[UNIFIER:${config.address}] Skipping ${denom} due to small balance`);
+            return [[], { denom, amount }] as [{ address: string, denom: string }[], Coin];
+        }
+        if (blacklist.includes(denom)) {
+            console.debug(`[UNIFIER:${config.address}] Skipping ${denom} due to blacklist`);
+            return [[], { denom, amount }] as [{ address: string, denom: string }[], Coin];
+        }
         console.debug(`[UNIFIER:${config.address}] Querying MantaSwap API for ${amount} ${denom} -> ${config.target}`);
         if (hardcodedRoutes[denom]) {
             const { address, output, maxSwapAmount } = hardcodedRoutes[denom];
@@ -124,7 +171,7 @@ async function constructMultiInputSwap(balances: Coin[], config: Config): Promis
         }
         return await queryMantaSwap(denom, amount, config.target).catch((e: any) => {
             console.error(`[UNIFIER:${config.address}] (${denom}) query: ${e}`);
-            return [];
+            return [[], { denom, amount }] as [{ address: string, denom: string }[], Coin];
         });
     }));
 
@@ -229,6 +276,8 @@ export async function run(address: string, idx: number) {
                 }
             }
         }
+
+        console.debug(`[UNIFIER:${address}] Cranking with ${JSON.stringify(tx)}`);
 
         const msgs = [
             msg.wasm.msgExecuteContract({

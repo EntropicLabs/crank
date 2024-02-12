@@ -10,9 +10,9 @@ export enum Contract {
 
 const RPCS = {
   [MAINNET]: [
-    "https://rpc-kujira.mintthemoon.xyz",
     "https://kujira-rpc.polkachu.com",
     "https://rpc-kujira.starsquid.io",
+    "https://rpc-kujira.mintthemoon.xyz",
   ],
   [TESTNET]:
     [
