@@ -1,0 +1,16 @@
+app = "quark-crank"
+primary_region = "ewr"
+swap_size_mb = 1_024
+
+[http_service]
+auto_start_machines = true
+auto_stop_machines = "off"
+force_https = true
+internal_port = 3_000
+min_machines_running = 1
+processes = ["app"]
+
+[[vm]]
+cpu_kind = "shared"
+cpus = 1
+memory = "512mb"
