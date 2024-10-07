@@ -1,16 +1,20 @@
 {
   "name": "quark-crank",
   "scripts": {
-    "start": "bun --bun run ./src/app.ts"
+    "start": "bun run ./src/app.ts"
   },
   "type": "module",
   "dependencies": {
-    "@cosmjs/crypto": "^0.31.1",
-    "@cosmjs/proto-signing": "^0.31.1",
-    "@cosmjs/utils": "^0.31.1",
+    "@cosmjs/crypto": "^0.32.4",
+    "@cosmjs/proto-signing": "^0.32.4",
+    "@cosmjs/utils": "^0.32.4",
+    "@cosmjs/tendermint-rpc": "^0.32.4",
+    "@cosmjs/stargate": "^0.32.4",
+    "@cosmjs/encoding": "^0.32.4",
+    "@entropic-labs/quark.js": "^0.0.34",
     "@types/node": "^18.11.9",
-    "cosmjs-types": "^0.7.2",
-    "kujira.js": "^0.9.33",
+    "cosmjs-types": "^0.9.0",
+    "kujira.js": "^1.0.61",
     "protobufjs": "^7.1.2",
     "text-encoding": "^0.7.0"
   }

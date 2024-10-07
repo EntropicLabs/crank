@@ -20,10 +20,10 @@ export const getAllContractState = async (
   const pageRequest = pageResponse
     ? PageRequest.fromPartial({
         key: pageResponse.nextKey,
-        limit: Long.fromNumber(100000),
+        limit: 100000n,
       })
     : PageRequest.fromPartial({
-        limit: Long.fromNumber(100000),
+        limit: 100000n,
       });
 
   const res = await client.wasm.getAllContractState(address, pageRequest);

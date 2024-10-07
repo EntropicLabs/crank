@@ -5,22 +5,22 @@ export const NETWORK = process.env.NETWORK === "mainnet" ? MAINNET : TESTNET;
 
 export enum Contract {
   HUB = "hub",
+  ICA_HUB = "ica_hub",
   UNIFIER = "unifier",
 }
 
 const RPCS = {
   [MAINNET]: [
-    "https://kujira-rpc.polkachu.com",
     "https://rpc-kujira.starsquid.io",
+    "https://kujira-rpc.polkachu.com",
     "https://rpc-kujira.mintthemoon.xyz",
   ],
-  [TESTNET]:
-    [
-      "https://kujira-testnet-rpc.polkachu.com",
-      "https://test-rpc-kujira.mintthemoon.xyz",
-      "https://dev-rpc-kujira.mintthemoon.xyz",
-    ]
-}
+  [TESTNET]: [
+    "https://kujira-testnet-rpc.polkachu.com",
+    "https://test-rpc-kujira.mintthemoon.xyz",
+    "https://dev-rpc-kujira.mintthemoon.xyz",
+  ],
+};
 
 const RPC_DEFAULT =
   process.env.NETWORK === "mainnet" ? RPCS[MAINNET][0] : RPCS[TESTNET][0];
